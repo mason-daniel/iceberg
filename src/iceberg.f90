@@ -62,7 +62,7 @@
         type(DownhillSimplex)               ::      simp
         real(kind=real64),dimension(:),allocatable      ::      ss      !  a simplex point
         real(kind=real64),dimension(:),allocatable      ::      bestss
-        integer                             ::      nTrials = 100
+        integer                             ::      nTrials = 500
     !---    
 
     !---    dummy variable

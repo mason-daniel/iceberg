@@ -81,6 +81,7 @@
                     npd = npd + pointDefectCount(d,omega0)
                 end do
                 npd_obs = npd
+                nn = n
             else
                 nn = 0
                 do ii = 1,n
@@ -104,9 +105,10 @@
         d2bar = d2bar/n
         print *,"n real   : ",nn
         print *,"n seen   : ",n
-        if (omega0 /= LIB_CLA_NODEFAULT_R) &
-        print *,"npd real : ",npd
-        print *,"npd obs  : ",npd_obs
+        if (omega0 /= LIB_CLA_NODEFAULT_R) then
+            print *,"npd real : ",npd
+            print *,"npd obs  : ",npd_obs
+        end if
         print *,"<d>      : ",dbar
         print *,"<d²>     : ",d2bar
         print *,"stdev    : ",sqrt(d2bar  - dbar*dbar) 
