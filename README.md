@@ -87,7 +87,7 @@ Now try adding the invisibility function, centre 2.0, width 1.0, and record the 
  stdev    :    1.9258147555017382
 ```
 
-Now some of the defects are missing - I tried to place 1176 but only 1000 made it to the output file. 
+Now some of the defects are missing - I tried to place 1310 but only 1000 made it to the output file. 
 Try to fit with no visibility function - this is done by setting the width to a -ve number, "-w -1".
 
 ```
@@ -102,7 +102,7 @@ Try to fit with no visibility function - this is done by setting the width to a 
  68% confidence interval <d>    2.5247010055816621      :   4.2526160782935856      :   5.9490616762664006
 
 ```
-The answer is now not so good- it is overestimating the average size. Now try to fit with a visibility function,
+The answer is now not so good- it is overestimating the average size. Now try to fit with a visibility function ( default options )
 ```
 ./bin/iceberg -f ../data/test.dat  
 
@@ -114,17 +114,17 @@ The answer is now not so good- it is overestimating the average size. Now try to
  expected point defect count    79750.101731338393
  68% confidence interval <d>    2.4003330183428973      :   4.0573710318732701      :   5.6838009270568639
  ```
-This gets a much better guess for the distribution.
-We can also force the correct number of point defects, if we know it. Here I know the correct number is 74859,
+This gets a much better guess for the distribution - note that the size and the defect count now look good.
+We can also force the correct number of point defects, if we know it. Here I know the correct number is 70296,
 ```
-./bin/iceberg -f ../data/test.dat -vol 1e8 -rho 0.000749 -omega0 1
+./bin/iceberg -f ../data/test.dat -vol 1e8 -rho 0.000703 -omega0 1
 
  chi-square value               29.935767339047434
  alpha value                   0.43641703226706613
  observed defect count          1000.0000000000000
  expected defect count          1179.2473136855754
  observed pointdefect count     70671.476368651391
- expected point defect count    74900.000000000015
+ expected point defect count    70300.000000000015
  68% confidence interval <d>    2.4032303048198380      :   4.0872141811268046      :   5.7393234093803907
 ```
 
@@ -140,8 +140,7 @@ We can also force the correct number of point defects, if we know it. Here I kno
 
 We make the assumption that not all defects are detectable, because some are too small.
 The form of the visibility function is not critically important, as we always need to report what is actually seen as well as a best guess for what we miss.
-The visibility function sets the probability of recording a defects with diameter d is a logistic function:
-
+I state that the visibility function sets the probability of recording a defects with diameter d is a logistic function:
 ```
     p(d) = 1/(1 + Exp[ -(d-d0)/w ])
 ```
