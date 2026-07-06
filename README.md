@@ -1,6 +1,6 @@
 # Iceberg
 
-A simple code to read in a list of defect diameters {d}, and return stats about the possible log-normal distributions which are compatible with that list. Deduces information about the hidden iceberg given the visible portion above the waterline.
+A simple code to read in a list of defect diameters {d} observed using TEM, and return stats about the possible log-normal distributions which are compatible with that list. Deduces information about the hidden iceberg given the visible portion above the waterline.
 
 Daniel Mason
 (c) UKAEA 2026
@@ -18,7 +18,7 @@ Daniel Mason
 
 ## Input file format
 
-Should be a simple one column list, eg
+Should be a simple one column list, with each line giving the diameter of a single defect, eg
 ```
  2.10
  3.45
