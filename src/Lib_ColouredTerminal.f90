@@ -60,7 +60,7 @@
     !*      produce a text string "text" decorated with terminal markup so it appears in the requested colour.
             integer,intent(in)                  ::      c
             character(len=*),intent(in)         ::      text
-            character(len=len_trim(text)+9)    ::      ctext
+            character(len=len_trim(text)+9)     ::      ctext
             
             if ( (c-1)*(size(COLOUR_CHARCODES)-c) >= 0 ) then
                 ctext = achar(27)//"["//COLOUR_CHARCODES(c)//"m"//trim(text)//achar(27)//"[0m"

@@ -45,6 +45,7 @@
 
         use iso_fortran_env
         use NBAX_StringTokenizers
+        use Lib_ColouredTerminal
         implicit none
         private
         
@@ -107,6 +108,7 @@
             integer,dimension(:),pointer        ::      arg_cat
             
             character(len=LIB_CLA_DESCLEN)      ::      program_description
+            integer                             ::      text_colour = 0
             character(len=32)                   ::      program_version
             
             character(len=LIB_CLA_KEYLEN),dimension(:),pointer     ::      arg_key
@@ -286,12 +288,20 @@
                 do
                     ii = index( text,new_line("A") )
                     if ( (ii == 0).or.(ii==len_trim(text)) ) then
-                        write(unit=uu,fmt='(a)') repeat(" ",oo)//trim(text)
-                        if (first_line) write(unit=uu,fmt='(a)') repeat(" ",oo)//repeat("^",len_trim(text))
+                        if (first_line) then
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//colour(this%text_colour,trim(text))
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//repeat("^",len_trim(text))
+                        else
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//trim(text)
+                        end if
                         exit
                     else
-                        write(unit=uu,fmt='(a)') repeat(" ",oo)//text(:ii-1)
-                        if (first_line) write(unit=uu,fmt='(a)') repeat(" ",oo)//repeat("^",ii-1)
+                        if (first_line) then
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//colour(this%text_colour,text(:ii-1))
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//repeat("^",ii-1)
+                        else
+                            write(unit=uu,fmt='(a)') repeat(" ",oo)//text(:ii-1)
+                        end if
                         text = text(ii+1:)
                         first_line = .false.
                     end if
@@ -582,11 +592,13 @@
             
         
         
-        subroutine setProgramDescription( this,program_description )
-    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        subroutine setProgramDescription( this,program_description,text_colour )
+    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             type(CommandLineArguments),intent(inout)        ::      this
             character(len=*),intent(in)     ::      program_description
+            integer,intent(in),optional     ::      text_colour
             this%program_description = program_description            
+            if (present(text_colour)) this%text_colour = text_colour
             return
         end subroutine setProgramDescription
             

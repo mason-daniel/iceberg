@@ -67,6 +67,7 @@
         interface       moment
             module procedure    moment0
             module procedure    moment1
+            module procedure    moment2
         end interface
 
 !         interface       int1toInfty
@@ -81,6 +82,7 @@
 
         interface       cdf
             module procedure    cdf0
+            module procedure    cdf1
         end interface
 
         interface       variate
@@ -202,12 +204,32 @@
                 mf = (this%mu**m) * safeExp( m*m*this%sigma*this%sigma/2 )
             else
                 mf = m * log( this%mu) + m*m*this%sigma*this%sigma/2
-                mf = safeExp(mf)
-                
+                mf = safeExp(mf)                
             end if
 
             return
         end function moment1
+
+
+         function moment2(this,m,x) result(mf)
+    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    !*      return the mth moment integrated from x to infinity
+            type(LogNormal),intent(in)      ::      this
+            integer,intent(in)              ::      m
+            real(kind=real64),intent(in)    ::      x
+            real(kind=real64)               ::      mf
+            if (m==0) then
+                mf = cdf(this,x)
+            else if (x <= 0) then
+                mf = moment0(this,m)
+            else
+                mf = (this%mu**m) * safeExp( m*m*this%sigma*this%sigma/2 )
+                mf = mf * ( 1 + erf( 0.707106781d0*(m*this%sigma + log(this%mu/x)/this%sigma) ) ) / 2
+                mf = mf / ( 1 - cdf(this,x) )
+            end if
+            return
+        end function moment2
+
 
 
 !         pure function int1toInfty0(this,m) result(mf)
@@ -352,6 +374,22 @@
 
 
 
+
+
+        pure function cdf1(this,x1,x2) result(f)
+    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    !*      return the value of the cumulative distribution function
+    !*      ie integral from x1 to x2
+            type(LogNormal),intent(in)      ::      this
+            real(kind=real64),intent(in)    ::      x1,x2
+            real(kind=real64)               ::      f
+            if (x2>x1) then
+                f = cdf0(this,x2) - cdf0(this,x1)
+            else
+                f = 0
+            end if
+            return
+        end function cdf1
 
 
 
