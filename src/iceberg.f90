@@ -30,14 +30,13 @@
         real(kind=real64)                   ::      d0 = LIB_CLA_NODEFAULT_R            !   visibility characteristic size
         real(kind=real64)                   ::      w = -1                              !   visibility characteristic width: -1 = all visible
         character(len=256)                  ::      filename = ""                       !   input file name
-        real(kind=real64)                   ::      rho = LIB_CLA_NODEFAULT_R          !   expected point defect density
+        real(kind=real64)                   ::      rho = LIB_CLA_NODEFAULT_R           !   expected point defect density
         real(kind=real64)                   ::      omega0 = 1.0d0                      !   volume per atom
         real(kind=real64)                   ::      vol = LIB_CLA_NODEFAULT_R           !   observed volume
-        logical                             ::      nDefectsObservedFixed = .true.             !   use observed defect count
-        logical                             ::      nPointDefectsFixed = .false.               !   use rho to determine expected defect count
+        logical                             ::      nPointDefectsFixed = .false.        !   use rho to determine expected defect count
         logical                             ::      logisticFuncFixed = .false.         !   use a logistic func for invisibility
         logical                             ::      voids = .true.                      !  distribution is for voids not loops
-        real(kind=real64)                   ::      b = 1                               !    burgers vector magnitude
+        real(kind=real64)                   ::      b = 1                               !    burgers vector magnitude - for use with loops
         integer                             ::      NBINS = LIB_CLA_NODEFAULT_I
         real(kind=real64)                   ::      maxBin = LIB_CLA_NODEFAULT_R
         integer                             ::      nTrials = 500
@@ -64,7 +63,7 @@
         real(kind=real64),dimension(:),allocatable      ::      histogram_knot_fine
         real(kind=real64),dimension(:),allocatable      ::      expected,expected_nolf
         integer                             ::      oversized
-        real(kind=real64)                   ::      alpha16,alpha84
+        real(kind=real64)                   ::      d16,d84
     !---
 
     !---    fit
@@ -117,7 +116,6 @@
 
         nPointDefectsFixed = (hasArgument(cla,"rho")) !   fixed by expected point defect count
 
-        nDefectsObservedFixed = (.not. nPointDefectsFixed) .and. (logisticFuncFixed.and.(w==-1))
         
 
         call report(cla)
@@ -132,7 +130,6 @@
 !        print *,colour(LIGHT_AQUA,"iceberg")
         print *,""
         print *,"   void diameter-volume?      ",voids
-        print *,"   use observed defect count? ",nDefectsObservedFixed
         print *,"   number of pd fixed?        ",nPointDefectsFixed
         print *,"   logistic func fixed?       ",logisticFuncFixed
         print *,""
@@ -273,12 +270,13 @@
         end do        
 
         call expectedHistogram( ln,lf,histogram_knot,histogram_knot_fine,expected )
-        if (nPointDefectsFixed) then
-            defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
-        else
-            defect_count = observed_defect_count / sum(expected)
-        end if
-        expected = expected * defect_count
+        call scaleExpectedHistogram( ln,omega0,expected_pointdefect_count,observed_defect_count,expected,defect_count )
+        ! if (nPointDefectsFixed) then
+        !     defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
+        ! else
+        !     defect_count = observed_defect_count / sum(expected)
+        ! end if
+        ! expected = expected * defect_count
 
         print *,"iceberg info - histogram before fitting"
         write(*,fmt='(a16,a6,a16)') "min diam","count","expected"
@@ -295,7 +293,8 @@
         x = moment(ln,2,dzero) - moment(ln,1,dzero)**2        !   variance
         x = sqrt( defect_count*x/(defect_count-1) )         !   unbiassed stdev  
         print *,"unfitted <d>,+/-            ",moment(ln,1,dzero),x/sqrt(defect_count)
-        print *,"68% confidence unfitted d   ",confidenceLevel(ln,0.16d0),":",confidenceLevel(ln,0.84d0)
+        call getConfidenceIntervals(ln,d16,d84)
+        print *,"68% confidence unfitted d   ",d16,":",d84
         print *,""
         print *,""
     !---
@@ -382,12 +381,13 @@
             print *,"iceberg info - no visibility function"
         end if
         call expectedHistogram( ln,lf,histogram_knot,histogram_knot_fine,expected )
-        if (nPointDefectsFixed) then
-            defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
-        else
-            defect_count = observed_defect_count / sum(expected)
-        end if
-        expected = expected * defect_count
+        call scaleExpectedHistogram( ln,omega0,expected_pointdefect_count,observed_defect_count,expected,defect_count )
+        ! if (nPointDefectsFixed) then
+        !     defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
+        ! else
+        !     defect_count = observed_defect_count / sum(expected)
+        ! end if
+        ! expected = expected * defect_count
         ! print *,"iceberg info - best fit results histogram"
         ! write(*,fmt='(a16,a6,a16)') "min diam","count","expected"
         ! do jj = 0,NBINS-1
@@ -403,7 +403,9 @@
         x = moment(ln,2,dzero) - moment(ln,1,dzero)**2       !   variance
         x = sqrt( defect_count*x/(defect_count-1) )          !   unbiassed stdev  
         print *,"fitted <d>,+/-              ",moment(ln,1,dzero),x/sqrt(defect_count)
-        print *,"68% confidence fitted d     ",confidenceLevel(ln,0.16d0),":",confidenceLevel(ln,0.84d0)
+        call getConfidenceIntervals(ln,d16,d84)
+        print *,"68% confidence fitted d     ",d16,":",d84
+ 
 
         print *,""
         print *,""
@@ -416,8 +418,7 @@
 !       reconstruct histogram with even bins for output
 !
 !------------------------------------------------------------------------------                   
-       print *,"iceberg info - best fit even bin histogram for output"
-       ! ii = int( observed_defect_count*0.99 )      !   99% percentile
+        print *,"iceberg info - best fit even bin histogram for output"
         if (maxBin == LIB_CLA_NODEFAULT_R) then
             maxBin = roundedBin( dat(n) )        
         end if
@@ -425,14 +426,10 @@
             x = jj*maxBin/NBINS
             histogram_knot(jj) = x
         end do
-
-        !print *,""
         do jj = 0,NBINS*NBINS
             x = jj*maxBin/(NBINS*NBINS)
             histogram_knot_fine(jj) = x
-        !    write(*,fmt='(100f16.8)') x,func(ln,x),cdf(ln,x),cdf(ln,dzero,x)
         end do
-        !print *,""
  
         observed = 0
         oversized = 0
@@ -449,12 +446,13 @@
             if (.not. ok) oversized = oversized + 1
         end do
         call expectedHistogram( ln,lf,histogram_knot,histogram_knot_fine,expected )
-        if (nPointDefectsFixed) then
-            defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
-        else
-            defect_count = observed_defect_count / sum(expected)
-        end if
-        expected = expected * defect_count
+        call scaleExpectedHistogram( ln,omega0,expected_pointdefect_count,observed_defect_count,expected,defect_count )
+        ! if (nPointDefectsFixed) then
+        !     defect_count = expectedDefectCount( ln,omega0,expected_pointdefect_count )  
+        ! else
+        !     defect_count = observed_defect_count / sum(expected)
+        ! end if
+        ! expected = expected * defect_count
 
         if (isUnset(lf)) then
             write(*,fmt='(6a16)') "#mean diam       ","npd  ","count  ","expected  "
@@ -574,7 +572,23 @@
              
             return
         end subroutine expectedHistogram
- 
+
+        pure subroutine getConfidenceIntervals( logn,d16,d84 )
+    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    !*      find the 16 and 84% percentiles intervals for this lognormal distribution, 
+    !*      given the dzero offset
+            type(LogNormal),intent(in)          ::      logn
+            real(kind=real64),intent(out)       ::      d16,d84
+            real(kind=real64)       ::      a16,a84,cdf0
+
+            cdf0 = cdf(logn,dzero)
+            a16 = 0.16d0 * ( 1 - cdf0 ) + cdf0
+            a84 = 0.84d0 * ( 1 - cdf0 ) + cdf0
+            d16 = confidenceLevel( logn,a16 )
+            d84 = confidenceLevel( logn,a84 )
+            return
+        end subroutine getConfidenceIntervals
+
 
 
         pure real(kind=real64) function pointDefectCount(d,omega0)
@@ -582,7 +596,6 @@
     !*      return count of point defects given vol per atom 
             real(kind=real64),intent(in)            ::      d   !   diam
             real(kind=real64),intent(in)            ::      omega0  !  volume per atom
-            !real(kind=real64),parameter     ::  PI = 3.141592654d0
           
             if (voids) then
                 pointDefectCount = ( PI * d**3 ) / ( 6 * omega0 )
@@ -601,7 +614,6 @@
     !*      inverse func of pointDefectCount()
             real(kind=real64),intent(in)            ::      n   !   diam
             real(kind=real64),intent(in)            ::      omega0  !  volume per atom
-            !real(kind=real64),parameter     ::  PI = 3.141592654d0
           
             if (voids) then
                 defectDiameter = ( 6 * n * omega0 / PI )**(1.0d0/3)
@@ -683,12 +695,13 @@
             end select
 
             call expectedHistogram( logn,logf,histogram_knot,histogram_knot_fine,expected )
-            if (nPointDefectsFixed) then
-                defect_count = expectedDefectCount( logn,omega0,expected_pointdefect_count )  
-            else
-                defect_count = observed_defect_count / sum(expected)
-            end if
-            expected = expected * defect_count
+            call scaleExpectedHistogram( logn,omega0,expected_pointdefect_count,observed_defect_count,expected,defect_count )
+            ! if (nPointDefectsFixed) then
+            !     defect_count = expectedDefectCount( logn,omega0,expected_pointdefect_count )  
+            ! else
+            !     defect_count = observed_defect_count / sum(expected)
+            ! end if
+            ! expected = expected * defect_count
 
             getChiSquared = chi_square(observed,expected)
 
@@ -701,6 +714,26 @@
             real(kind=real64),intent(in)        ::      x
             sanitise = max( 1.0d-8,min(1d8,x) )
         end function sanitise
+
+
+        subroutine scaleExpectedHistogram( logn,omega0,expected_pointdefect_count,observed_defect_count,expected,defect_count )
+    !---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    !*      given the unscaled distribution and expected counts of defects, scale to the required defect count
+            type(Lognormal),intent(in)          ::      logn
+            real(kind=real64),intent(in)        ::      omega0
+            real(kind=real64),intent(in)        ::      expected_pointdefect_count,observed_defect_count        !   one of these is used to scale the data
+            real(kind=real64),dimension(0:),intent(inout)   ::  expected
+            real(kind=real64),intent(out)       ::      defect_count
+            
+            if (nPointDefectsFixed) then
+                defect_count = expectedDefectCount( logn,omega0,expected_pointdefect_count )  
+            else
+                defect_count = observed_defect_count / sum(expected)
+            end if
+            expected = expected * defect_count
+
+            return
+        end subroutine scaleExpectedHistogram
 
 
 
@@ -717,21 +750,9 @@
 
 
             if (logisticFuncFixed) then
-                !if (nPointDefectsFixed .or. nDefectsObservedFixed) then
-                    !   only adjusting lognormal mu,sig
-                    dd = 2
-                ! else 
-                !     !   adjusting mu,sig, and defect count 
-                !     dd = 3
-                !end if
+                dd = 2
             else 
-                !if (nPointDefectsFixed .or. nDefectsObservedFixed) then
-                    !   adjusting lognormal mu,sig + logistic d0,w
-                    dd = 4
-                ! else 
-                !     !   adjusting mu,sig, and defect count + logistic d0,w
-                !     dd = 5
-                !end if
+                dd = 4
             end if
 
             nn = dd * 2
